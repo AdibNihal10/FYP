@@ -176,6 +176,7 @@ const Scholar = require("../Model/scholarsModel"); // Model for utm_scholars
 const TrainingProject = require("../Model/trainingModel"); // Model for training_2024
 const Conference = require("../Model/conferenceModel"); // Import Conference model
 const MouMoA = require("../Model/networking");
+const RG = require("../Model/researchGroup");
 const app = express();
 const PORT = 5000;
 const { login } = require("../Controller/loginControl");
@@ -196,47 +197,75 @@ mongoose
 // Endpoints
 app.post("/login", login);
 // 1. Grants Data Endpoint
+// app.get("/api/grants", async (req, res) => {
+//   try {
+//     const grantsData = await RG.aggregate([
+//       {
+//         $addFields: {
+//           NATIONAL_GRANTS_INT: { $toInt: "$NATIONAL_GRANTS" },
+//           INTERNATIONAL_GRANTS_INT: { $toInt: "$INTERNATIONAL_GRANTS" },
+//           INDUSTRY_GRANTS_INT: { $toInt: "$INDUSTRY_GRANTS" },
+//         },
+//       },
+//       {
+//         $group: {
+//           _id: null,
+//           totalNationalGrants: { $sum: "$NATIONAL_GRANTS_INT" },
+//           totalInternationalGrants: { $sum: "$INTERNATIONAL_GRANTS_INT" },
+//           totalIndustryGrants: { $sum: "$INDUSTRY_GRANTS_INT" },
+//         },
+//       },
+//     ]);
+
+//     const {
+//       totalNationalGrants = 0,
+//       totalInternationalGrants = 0,
+//       totalIndustryGrants = 0,
+//     } = grantsData[0] || {};
+
+//     res.json({
+//       nationalGrants: totalNationalGrants,
+//       internationalGrants: totalInternationalGrants,
+//       industryGrants: totalIndustryGrants,
+//     });
+//   } catch (err) {
+//     console.error("Error fetching grants data:", err);
+//     res.status(500).send("Error fetching grants data");
+//   }
+// });
+
 app.get("/api/grants", async (req, res) => {
   try {
-    const grantsData = await Scholar.aggregate([
-      {
-        $addFields: {
-          NATIONAL_GRANTS_INT: { $toInt: "$NATIONAL_GRANTS" },
-          INTERNATIONAL_GRANTS_INT: { $toInt: "$INTERNATIONAL_GRANTS" },
-          INDUSTRY_GRANTS_INT: { $toInt: "$INDUSTRY_GRANTS" },
-        },
-      },
+    const { researchGroup } = req.query;
+    const match = researchGroup ? { researchGroup } : {};
+
+    const grantsData = await RG.aggregate([
+      { $match: match },
       {
         $group: {
           _id: null,
-          totalNationalGrants: { $sum: "$NATIONAL_GRANTS_INT" },
-          totalInternationalGrants: { $sum: "$INTERNATIONAL_GRANTS_INT" },
-          totalIndustryGrants: { $sum: "$INDUSTRY_GRANTS_INT" },
+          nationalGrants: { $sum: { $toInt: "$NATIONAL_GRANTS" } },
+          internationalGrants: { $sum: { $toInt: "$INTERNATIONAL_GRANTS" } },
+          industryGrants: { $sum: { $toInt: "$INDUSTRY_GRANTS" } },
         },
       },
     ]);
 
-    const {
-      totalNationalGrants = 0,
-      totalInternationalGrants = 0,
-      totalIndustryGrants = 0,
-    } = grantsData[0] || {};
-
-    res.json({
-      nationalGrants: totalNationalGrants,
-      internationalGrants: totalInternationalGrants,
-      industryGrants: totalIndustryGrants,
-    });
+    res.json(grantsData[0] || {});
   } catch (err) {
     console.error("Error fetching grants data:", err);
-    res.status(500).send("Error fetching grants data");
+    res.status(500).send("Failed to fetch grants data.");
   }
 });
 
 // 2. Publications Data Endpoint
 app.get("/api/publications", async (req, res) => {
   try {
-    const publicationData = await Scholar.aggregate([
+    const { researchGroup } = req.query; // Extract the researchGroup filter from query parameters
+    const match = researchGroup ? { researchGroup } : {}; // Match condition for filtering
+
+    const publicationData = await RG.aggregate([
+      { $match: match }, // Apply filter if researchGroup is provided
       {
         $addFields: {
           INDEXED_PUBLICATION_INT: { $toInt: "$INDEXED_PUBLICATION" },
@@ -274,7 +303,11 @@ app.get("/api/publications", async (req, res) => {
 // 3. Scopus Data Endpoint
 app.get("/api/scopusData", async (req, res) => {
   try {
-    const scopusData = await Scholar.aggregate([
+    const { researchGroup } = req.query; // Extract the researchGroup filter from query parameters
+    const match = researchGroup ? { researchGroup } : {}; // Match condition for filtering
+
+    const scopusData = await RG.aggregate([
+      { $match: match }, // Apply filter if researchGroup is provided
       {
         $addFields: {
           H_INDEXED_SCOPUS_INT: { $toInt: "$H_INDEXED_SCOPUS" },
@@ -306,6 +339,17 @@ app.get("/api/scopusData", async (req, res) => {
   } catch (err) {
     console.error("Error fetching Scopus data:", err);
     res.status(500).send("Error fetching Scopus data");
+  }
+});
+
+//RG
+app.get("/api/research-groups", async (req, res) => {
+  try {
+    const groups = await RG.distinct("researchGroup");
+    res.json(groups);
+  } catch (err) {
+    console.error("Error fetching research groups:", err);
+    res.status(500).send("Failed to fetch research groups.");
   }
 });
 

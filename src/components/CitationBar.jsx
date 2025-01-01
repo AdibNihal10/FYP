@@ -171,13 +171,42 @@ import { ResponsiveBar } from "@nivo/bar";
 
 const StackedBarChart = () => {
   const [data, setData] = useState([]);
+  const [researchGroups, setResearchGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Fetch research groups on component mount
+  useEffect(() => {
+    const fetchResearchGroups = async () => {
+      try {
+        const response = await fetch(
+          "http://localhost:5000/api/research-groups"
+        );
+        if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+        const groups = await response.json();
+        setResearchGroups(groups);
+      } catch (err) {
+        console.error("Error fetching research groups:", err);
+        setError("Failed to load research groups.");
+      }
+    };
+
+    fetchResearchGroups();
+  }, []);
+
+  // Fetch Scopus data based on selected research group
   useEffect(() => {
     const fetchScopusData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/scopusData");
+        setLoading(true);
+        const url = selectedGroup
+          ? `http://localhost:5000/api/scopusData?researchGroup=${encodeURIComponent(
+              selectedGroup
+            )}`
+          : "http://localhost:5000/api/scopusData";
+
+        const response = await fetch(url);
         if (!response.ok) throw new Error(`Error: ${response.statusText}`);
         const jsonData = await response.json();
 
@@ -186,17 +215,17 @@ const StackedBarChart = () => {
           {
             metric: "H-Index",
             count: jsonData.hIndexedScopus,
-            color: "#1f77b4",
+            color: "#A1CFFF", // Light blue
           },
           {
             metric: "Citations",
             count: jsonData.citationsScopus,
-            color: "#ff7f0e",
+            color: "#FFC9A9", // Light orange
           },
           {
             metric: "Publications",
             count: jsonData.publications,
-            color: "#2ca02c",
+            color: "#A4EDC2", // Light green
           },
         ];
 
@@ -210,13 +239,37 @@ const StackedBarChart = () => {
     };
 
     fetchScopusData();
-  }, []);
+  }, [selectedGroup]);
 
   if (loading) return <p>Loading chart...</p>;
   if (error) return <p>{error}</p>;
 
   return (
     <div style={{ margin: "auto", textAlign: "center" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <label htmlFor="researchGroup" style={{ marginRight: "10px" }}>
+          Filter by Research Group:
+        </label>
+        <select
+          id="researchGroup"
+          value={selectedGroup}
+          onChange={(e) => setSelectedGroup(e.target.value)}
+          style={{
+            padding: "8px",
+            borderRadius: "4px",
+            border: "1px solid #ccc",
+            fontSize: "14px",
+          }}
+        >
+          <option value="">All Research Groups</option>
+          {researchGroups.map((group) => (
+            <option key={group} value={group}>
+              {group}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div style={{ height: "500px", width: "80%", margin: "auto" }}>
         <h2>Metrics Overview</h2>
         <ResponsiveBar
@@ -228,18 +281,18 @@ const StackedBarChart = () => {
           colors={({ data }) => data.color}
           borderColor={{
             from: "color",
-            modifiers: [["darker", 1.6]],
+            modifiers: [["darker", 0.6]],
           }}
           axisTop={null}
           axisRight={null}
-          // axisBottom={{
-          //   tickSize: 5,
-          //   tickPadding: 5,
-          //   tickRotation: 0,
-          //   legend: "Metric Type",
-          //   legendPosition: "middle",
-          //   legendOffset: 40,
-          // }}
+          axisBottom={{
+            tickSize: 5,
+            tickPadding: 5,
+            tickRotation: 0,
+            legend: "Metric Type",
+            legendPosition: "middle",
+            legendOffset: 40,
+          }}
           axisLeft={{
             tickSize: 5,
             tickPadding: 5,
@@ -247,7 +300,6 @@ const StackedBarChart = () => {
             legend: "Count",
             legendPosition: "middle",
             legendOffset: -40,
-            tickValues: [0, 10000, 20000, 30000, 40000, 50000, 60000],
           }}
           label={({ value }) => value}
           labelSkipWidth={16}
@@ -294,25 +346,26 @@ const StackedBarChart = () => {
           ariaLabel="Bar chart showing metrics overview"
         />
       </div>
+
       {/* Add the summary below the chart */}
       <div
         style={{
-          marginTop: "50px",
+          marginTop: "30px",
           display: "flex",
           justifyContent: "center",
-          gap: "10px",
+          gap: "20px",
         }}
       >
         <p>
-          <strong>H-Index (Scopus)</strong>:{" "}
+          <strong>H-Index (Scopus):</strong>{" "}
           {data.find((d) => d.metric === "H-Index")?.count || 0}
         </p>
         <p>
-          <strong>Publications</strong>:{" "}
+          <strong>Publications:</strong>{" "}
           {data.find((d) => d.metric === "Publications")?.count || 0}
         </p>
         <p>
-          <strong>Citations (Scopus)</strong>:{" "}
+          <strong>Citations (Scopus):</strong>{" "}
           {data.find((d) => d.metric === "Citations")?.count || 0}
         </p>
       </div>

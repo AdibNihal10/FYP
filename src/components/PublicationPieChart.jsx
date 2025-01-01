@@ -252,13 +252,42 @@ import { ResponsivePie } from "@nivo/pie";
 
 const PublicationsPieChart = () => {
   const [data, setData] = useState([]);
+  const [researchGroups, setResearchGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Fetch research groups on component mount
+  useEffect(() => {
+    const fetchResearchGroups = async () => {
+      try {
+        const response = await fetch(
+          "http://localhost:5000/api/research-groups"
+        );
+        if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+        const groups = await response.json();
+        setResearchGroups(groups);
+      } catch (err) {
+        console.error("Error fetching research groups:", err);
+        setError("Failed to load research groups.");
+      }
+    };
+
+    fetchResearchGroups();
+  }, []);
+
+  // Fetch publications data based on selected research group
   useEffect(() => {
     const fetchPublicationsData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/publications");
+        setLoading(true);
+        const url = selectedGroup
+          ? `http://localhost:5000/api/publications?researchGroup=${encodeURIComponent(
+              selectedGroup
+            )}`
+          : "http://localhost:5000/api/publications";
+
+        const response = await fetch(url);
         if (!response.ok) throw new Error(`Error: ${response.statusText}`);
         const jsonData = await response.json();
 
@@ -297,24 +326,55 @@ const PublicationsPieChart = () => {
     };
 
     fetchPublicationsData();
-  }, []);
+  }, [selectedGroup]);
 
   if (loading) return <p>Loading chart...</p>;
   if (error) return <p>{error}</p>;
 
   return (
-    <div style={{ height: "400px", width: "800px", margin: "auto" }}>
+    <div
+      style={{
+        height: "500px",
+        width: "700px",
+        margin: "auto",
+        textAlign: "center",
+      }}
+    >
+      <h2 style={{ marginBottom: "20px" }}>Publications Overview</h2>
+      <div style={{ marginBottom: "20px" }}>
+        <label htmlFor="researchGroup" style={{ marginRight: "10px" }}>
+          Filter by Research Group:
+        </label>
+        <select
+          id="researchGroup"
+          value={selectedGroup}
+          onChange={(e) => setSelectedGroup(e.target.value)}
+          style={{
+            padding: "8px",
+            borderRadius: "4px",
+            border: "1px solid #ccc",
+            fontSize: "14px",
+          }}
+        >
+          <option value="">All Research Groups</option>
+          {researchGroups.map((group) => (
+            <option key={group} value={group}>
+              {group}
+            </option>
+          ))}
+        </select>
+      </div>
       <ResponsivePie
         data={data}
         margin={{ top: 40, right: 80, bottom: 80, left: 80 }}
-        innerRadius={0} // Full pie chart
-        padAngle={1} // Spacing between slices
-        cornerRadius={3}
-        colors={{ scheme: "set3" }} // Bright color scheme
-        borderWidth={1}
+        innerRadius={0.6} // Doughnut-style chart
+        padAngle={2} // Slightly more space between slices
+        cornerRadius={5} // Rounded corners for slices
+        colors={{ scheme: "category10" }} // Color scheme
+        borderWidth={2}
         borderColor={{
           from: "color",
-          modifiers: [["darker", 0.2]],
+          modifiers: [["darker", 0.4]],
         }}
         arcLinkLabelsSkipAngle={10}
         arcLinkLabelsTextColor="#333333"
@@ -329,9 +389,10 @@ const PublicationsPieChart = () => {
           <div
             style={{
               padding: "5px 10px",
-              color: "white",
+              color: "#fff",
               background: datum.color,
-              borderRadius: "3px",
+              borderRadius: "5px",
+              fontSize: "12px",
             }}
           >
             <strong>{datum.id}</strong>: {datum.value} ({datum.label})
@@ -345,9 +406,9 @@ const PublicationsPieChart = () => {
             translateX: 0,
             translateY: 56,
             itemsSpacing: 0,
-            itemWidth: 100,
+            itemWidth: 120,
             itemHeight: 18,
-            itemTextColor: "#999",
+            itemTextColor: "#333",
             itemDirection: "left-to-right",
             symbolSize: 18,
             symbolShape: "circle",

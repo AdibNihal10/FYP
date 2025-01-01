@@ -76,15 +76,45 @@ import { ResponsiveBar } from "@nivo/bar";
 
 const PublicationsBarChart = () => {
   const [data, setData] = useState([]);
+  const [researchGroups, setResearchGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Fetch research groups on component mount
+  useEffect(() => {
+    const fetchResearchGroups = async () => {
+      try {
+        const response = await fetch(
+          "http://localhost:5000/api/research-groups"
+        );
+        if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+        const groups = await response.json();
+        setResearchGroups(groups);
+      } catch (err) {
+        console.error("Error fetching research groups:", err);
+        setError("Failed to load research groups.");
+      }
+    };
+
+    fetchResearchGroups();
+  }, []);
+
+  // Fetch publications data based on selected research group
   useEffect(() => {
     const fetchPublicationsData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/publications");
+        setLoading(true);
+        const url = selectedGroup
+          ? `http://localhost:5000/api/publications?researchGroup=${encodeURIComponent(
+              selectedGroup
+            )}`
+          : "http://localhost:5000/api/publications";
+
+        const response = await fetch(url);
         if (!response.ok) throw new Error(`Error: ${response.statusText}`);
         const jsonData = await response.json();
+
         // Map API response to chart data format
         const chartData = [
           { type: "Indexed Publications", count: jsonData.indexedPublications },
@@ -104,7 +134,7 @@ const PublicationsBarChart = () => {
     };
 
     fetchPublicationsData();
-  }, []);
+  }, [selectedGroup]);
 
   if (loading) return <p>Loading chart...</p>;
   if (error) return <p>{error}</p>;
@@ -112,6 +142,21 @@ const PublicationsBarChart = () => {
   return (
     <div style={{ height: "500px", width: "700px", margin: "auto" }}>
       <h2 style={{ textAlign: "center" }}>Publications Overview</h2>
+      <div style={{ textAlign: "center", marginBottom: "20px" }}>
+        <label htmlFor="researchGroup">Filter by Research Group: </label>
+        <select
+          id="researchGroup"
+          value={selectedGroup}
+          onChange={(e) => setSelectedGroup(e.target.value)}
+        >
+          <option value="">All Research Groups</option>
+          {researchGroups.map((group) => (
+            <option key={group} value={group}>
+              {group}
+            </option>
+          ))}
+        </select>
+      </div>
       <ResponsiveBar
         data={data}
         keys={["count"]}
